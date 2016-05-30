@@ -1,0 +1,17 @@
+body {
+    background-color: black;
+}
+
+*.footprint {
+    position: absolute;
+    display: block;
+    opacity: 1;
+}
+
+*.hidden {
+    opacity: 0;
+}
+
+*.fading {
+    transition: opacity 1000ms ease-in-out;
+}
