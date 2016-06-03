@@ -17,7 +17,7 @@ footprint.prototype.step = function(x, y, rot, type) {
     this.img.classList.remove("hidden", "fading");
     this.img.style.left = x;
     this.img.style.top = -y;
-    //TODO rot
+    this.img.style.transform = "rotate(" + rot + "deg)";
     //type
     this.img.src = "step.png";
 }
@@ -78,6 +78,41 @@ function step(beat, ft, x, y, rot, typ) {
 
 //////////////////////////////////
 
+// MOVEPT
+
+function movept(beat, x, y, sx, sy) {
+    this.time = beat;
+    this.x = x;
+    this.y = y;
+    this.sx = sx;
+    this.sy = sy;
+}
+
+function bezier(time, pt1, pt2) {
+    if(pt1.time >= pt2.time){
+        tmp = pt1;
+        pt1 = pt2;
+        pt2 = tmp;
+    }
+    if(time < pt1.time)
+        time = pt1.time;
+    if(time > pt2.time)
+        time = pt2.time;
+    var rat = (time - pt1.time) / (pt2.time - pt1.time);
+    if(pt1.sx == null){//linear?
+        x = pt1.x + (pt2.x - pt1.x) * rat;
+        y = pt1.y + (pt2.y - pt1.y) * rat;
+        return [x, y]
+    }
+    //bezier
+    var rat1 = 1 - rat;
+    x = rat1 * rat1 * pt1.x + 2 * rat1 * rat * pt1.sx + rat * rat * pt2.x;
+    y = rat1 * rat1 * pt1.y + 2 * rat1 * rat * pt1.sy + rat * rat * pt2.y;
+    return [x, y];
+}
+        
+//////////////////////////////////
+
 // DANCER
 
 function dancer(x, y, clk) {
@@ -88,6 +123,7 @@ function dancer(x, y, clk) {
     this.left = new foot();
     this.right = new foot();
     this.steps = [];
+    this.move = [];
     this.lasttick = -1;
     //init
     this.clk.register(this);
@@ -120,6 +156,19 @@ dancer.prototype.dostep = function(num) {
     ft.step(x, y, r, st.typ);
 }
 
+dancer.prototype.getpos = function(now) {
+    if(this.move.length == 0)
+        return [this.x, this.y]
+    var i;
+    for(i = 0; i < this.move.length; i++){
+        if(now > this.move[i].time)
+            break;
+    }
+    if(i >= this.move.length - 1)
+        return [this.x + this.move[i].x, this.y + this.move[i].y]
+    bz = bezier(this.move[i], this.move[i+1], now);
+    return [this.x + bz.x, this.y + bz.y];
+}
 
 //////////////////////////////////
 

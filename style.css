@@ -6,6 +6,7 @@ body {
     position: absolute;
     display: block;
     opacity: 0.7;
+    transform-origin: 50% 50%;
 }
 
 *.hidden {
