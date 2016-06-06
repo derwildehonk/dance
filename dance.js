@@ -99,16 +99,24 @@ function bezier(time, pt1, pt2) {
     if(time > pt2.time)
         time = pt2.time;
     var rat = (time - pt1.time) / (pt2.time - pt1.time);
+    var x, y, tx, ty;
     if(pt1.sx == null){//linear?
         x = pt1.x + (pt2.x - pt1.x) * rat;
         y = pt1.y + (pt2.y - pt1.y) * rat;
-        return [x, y]
+        tx = pt2.x - pt1.x;
+        ty = pt2.y - pt1.y;
+    }else {//bezier
+        var rat1 = 1 - rat;
+        x = rat1 * rat1 * pt1.x + 2 * rat1 * rat * pt1.sx + rat * rat * pt2.x;
+        y = rat1 * rat1 * pt1.y + 2 * rat1 * rat * pt1.sy + rat * rat * pt2.y;
+        tx = -2 * rat1 + 2 * rat1 * pt1.sx + 2 * rat * pt2.x;
+        ty = -2 * rat1 + 2 * rat1 * pt1.sy + 2 * rat * pt2.y;
     }
-    //bezier
-    var rat1 = 1 - rat;
-    x = rat1 * rat1 * pt1.x + 2 * rat1 * rat * pt1.sx + rat * rat * pt2.x;
-    y = rat1 * rat1 * pt1.y + 2 * rat1 * rat * pt1.sy + rat * rat * pt2.y;
-    return [x, y];
+    if(ty == 0)
+        rot = tx < 0 ? 180 : 0;
+    else
+        rot = Math.atan(tx / ty) * 180 / Math.PI; 
+    return [x, y, rot];
 }
         
 //////////////////////////////////
@@ -126,7 +134,7 @@ function dancer(x, y, clk) {
     this.move = [];
     this.lasttick = -1;
     //init
-    this.clk.register(this);
+    this.clk.register(this, null);
     this.left.step(x + DANCER_LEFT_XOFF, y, 0, "step");
     this.right.step(x + DANCER_RIGTH_XOFF, y, 0, "step");
 }
@@ -138,9 +146,11 @@ dancer.prototype.clk_call = function (now) {
             this.dostep(i);
     }
     this.lasttick = now;
+    return null;
 }
 
 dancer.prototype.dostep = function(num) {
+    console.log("dostep " + num);
     var st = this.steps[num];
     var ft, ftx;
     if(st.foot == 'l'){
@@ -150,24 +160,30 @@ dancer.prototype.dostep = function(num) {
         ft = this.right;
         ftx = DANCER_RIGTH_XOFF;
     }
-    var x = this.x + st.x + ftx;
-    var y = this.y + st.y;
-    var r = this.rot + st.rot;
+    var mov = this.getpos(st.time);
+    var x = mov[0] + st.x + ftx;
+    var y = mov[1] + st.y;
+    var r = mov[2] + st.rot;
     ft.step(x, y, r, st.typ);
 }
 
 dancer.prototype.getpos = function(now) {
-    if(this.move.length == 0)
-        return [this.x, this.y]
+    if(this.move.length < 2)
+        return [this.x, this.y, this.rot]
     var i;
     for(i = 0; i < this.move.length; i++){
         if(now > this.move[i].time)
             break;
     }
     if(i >= this.move.length - 1)
-        return [this.x + this.move[i].x, this.y + this.move[i].y]
-    bz = bezier(this.move[i], this.move[i+1], now);
-    return [this.x + bz.x, this.y + bz.y];
+        i = this.move.length - 2;
+    if(now < this.move[i].time)
+        now = this.move[i].time;
+    if(now > this.move[i+1].time)
+        now = this.move[i+1].time;
+    console.log("get pos i:"  + i + " now:" + now);
+    bz = bezier(now, this.move[i], this.move[i+1]);
+    return [this.x + bz[0], this.y + bz[1], this.rot + bz[2]];
 }
 
 //////////////////////////////////
@@ -178,6 +194,7 @@ function clock() {
     this.now = 0;
     this.speed = 128; //1 beat per sec
     this.start = null;
+    this.end = null;
     this.hands = [];
     this.sched_tout = null;
     this.tickdelta = 1000 / 64;
@@ -197,7 +214,8 @@ clock.prototype.run = function(start, end) {
     this.now = start;
     this.end = end;
     this.start = new Date().getTime() - start * 1000 / this.speed;
-    setTimeout(clock_tick, self.tickdelta, this); 
+    this.sched_tout = setInterval(clock_call, self.tickdelta, this);
+    console.log("clk run"); 
 }
 
 clock.prototype.getnow = function() {
@@ -207,16 +225,23 @@ clock.prototype.getnow = function() {
 }
 
 function clock_call(clock) {
-    now = clock.getnow();
-    for(i = 0; i < this.hands.length; i++){
-        hand = this.hand[i];
+    var now = clock.getnow();
+    for(i = 0; i < clock.hands.length; i++){
+        hand = clock.hands[i];
         if(now >= hand.next){
             next = hand.handler.clk_call(now);
             if(next != null)
                 hand.next = next;
-            else
-                hand.next = now + hand.delta;
+            else{
+                hand.next = now;
+                if(hand.delta != null)
+                    hand.next += hand.delta;
+            }
         }
+    }
+    if(now >= clock.end){
+        console.log("clk stop");
+        clearTimeout(clock.sched_tout);
     }
 }
 
@@ -227,5 +252,5 @@ function clock_call(clock) {
 function beat(full, count, parts) {
     if(parts > 128)
         throw "time precision is only 128 parts";
-    return full + 128 + count * (128 / parts);
+    return full * 128 + count * (128 / parts);
 }
