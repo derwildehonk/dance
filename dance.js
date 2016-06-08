@@ -1,6 +1,8 @@
 FOOTPRINT_REUSE = 1100;
 DANCER_LEFT_XOFF = -30;
 DANCER_RIGTH_XOFF = 30;
+POINTER_WIDTH = 50;
+FOOTPRINT_WIDTH = 100;
 
 //////////////////////////////////
 
@@ -15,8 +17,8 @@ function footprint () {
 
 footprint.prototype.step = function(x, y, rot, type) {
     this.img.classList.remove("hidden", "fading");
-    this.img.style.left = x;
-    this.img.style.top = -y;
+    this.img.style.left = x - FOOTPRINT_WIDTH / 2;
+    this.img.style.top = -y - FOOTPRINT_WIDTH / 2;
     this.img.style.transform = "rotate(" + rot + "deg)";
     //type
     this.img.src = "step.png";
@@ -34,6 +36,23 @@ footprint.prototype.isavail = function() {
     else
         return true;
 }
+
+//////////////////////////////////
+
+// POINTER
+
+function pointer () {
+    this.img = new Image();
+    this.img.classList = "pointer";
+}
+
+pointer.prototype.move = function(x, y, rot) {
+    this.img.style.left = x - POINTER_WIDTH / 2;
+    this.img.style.top = -y - POINTER_WIDTH / 2;
+    this.img.style.transform = "rotate(" + rot + "deg)";
+    this.img.src = "arrow.png";
+    document.body.appendChild(this.img);
+} 
 
 //////////////////////////////////
 
@@ -109,38 +128,57 @@ function bezier(time, pt1, pt2) {
         var rat1 = 1 - rat;
         x = rat1 * rat1 * pt1.x + 2 * rat1 * rat * pt1.sx + rat * rat * pt2.x;
         y = rat1 * rat1 * pt1.y + 2 * rat1 * rat * pt1.sy + rat * rat * pt2.y;
-        tx = -2 * rat1 + 2 * rat1 * pt1.sx + 2 * rat * pt2.x;
-        ty = -2 * rat1 + 2 * rat1 * pt1.sy + 2 * rat * pt2.y;
+        tx = (rat - 1) * pt1.x + (1 - 2 * rat) * pt1.sx + pt2.x * rat;
+        ty = (rat - 1) * pt1.y + (1 - 2 * rat) * pt1.sy + pt2.y * rat;
     }
     if(ty == 0)
-        rot = tx < 0 ? 180 : 0;
+        rot = tx < 0 ? 270 : 90;
     else
-        rot = Math.atan(tx / ty) * 180 / Math.PI; 
+        rot = Math.atan(tx / ty) * 180 / Math.PI + (ty < 0 ? 180 : 0);
+    if(rot > 360)
+        rot -= 360;
     return [x, y, rot];
 }
-        
+
+function addpt(base, pt) {
+    var ang = base[2] * Math.PI / 180.;
+    var nx = base[0] + pt[0] * Math.cos(ang) + pt[1] * Math.sin(ang);
+    var ny = base[1] - pt[0] * Math.sin(ang) + pt[1] * Math.cos(ang);
+    var rot = base[2] + pt[2];
+    while(rot > 360)
+        rot -= 360;
+    while(rot < 0)
+        rot += 360;
+    return [nx, ny, rot];
+}
+
 //////////////////////////////////
 
 // DANCER
 
-function dancer(x, y, clk) {
+function dancer(x, y, r, clk) {
     this.clk = clk;
     this.x = x;
     this.y = y;
-    this.rot = 0;
+    this.rot = r;
     this.left = new foot();
     this.right = new foot();
+    this.pointer = new pointer();
     this.steps = [];
     this.move = [];
     this.lasttick = -1;
     //init
     this.clk.register(this, null);
-    this.left.step(x + DANCER_LEFT_XOFF, y, 0, "step");
-    this.right.step(x + DANCER_RIGTH_XOFF, y, 0, "step");
+    pt = addpt([x, y, r], [DANCER_LEFT_XOFF, 0, 0]);
+    this.left.step(pt[0], pt[1], pt[2], "step");
+    pt = addpt([x, y, r], [DANCER_RIGTH_XOFF, 0, 0]);
+    this.right.step(pt[0], pt[1], pt[2], "step");
 }
 
 dancer.prototype.clk_call = function (now) {
     var i;
+    var mov = this.getpos(now);
+    this.pointer.move(mov[0], mov[1], mov[2]);
     for(i = 0; i < this.steps.length; i++){
         if(now >= this.steps[i].time && this.lasttick < this.steps[i].time)
             this.dostep(i);
@@ -150,7 +188,6 @@ dancer.prototype.clk_call = function (now) {
 }
 
 dancer.prototype.dostep = function(num) {
-    console.log("dostep " + num);
     var st = this.steps[num];
     var ft, ftx;
     if(st.foot == 'l'){
@@ -161,10 +198,9 @@ dancer.prototype.dostep = function(num) {
         ftx = DANCER_RIGTH_XOFF;
     }
     var mov = this.getpos(st.time);
-    var x = mov[0] + st.x + ftx;
-    var y = mov[1] + st.y;
-    var r = mov[2] + st.rot;
-    ft.step(x, y, r, st.typ);
+    var mov2 = addpt(mov, [st.x, st.y, st.rot]);
+    var mov3 = addpt(mov2, [ftx, 0, 0]);
+    ft.step(mov3[0], mov3[1], mov3[2], st.typ);
 }
 
 dancer.prototype.getpos = function(now) {
@@ -181,9 +217,8 @@ dancer.prototype.getpos = function(now) {
         now = this.move[i].time;
     if(now > this.move[i+1].time)
         now = this.move[i+1].time;
-    console.log("get pos i:"  + i + " now:" + now);
     bz = bezier(now, this.move[i], this.move[i+1]);
-    return [this.x + bz[0], this.y + bz[1], this.rot + bz[2]];
+    return addpt([this.x, this.y, this.rot], bz);
 }
 
 //////////////////////////////////

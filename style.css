@@ -16,3 +16,9 @@ body {
 *.fading {
     transition: opacity 1000ms ease-in-out;
 }
+
+ *.pointer {
+    position: absolute;
+    display: block;
+    transform-origin: 50% 50%;
+ }
