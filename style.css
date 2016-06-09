@@ -14,7 +14,7 @@ body {
 }
 
 *.fading {
-    transition: opacity 1000ms ease-in-out;
+    transition: opacity 250ms ease-in-out;
 }
 
  *.pointer {

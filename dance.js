@@ -2,7 +2,8 @@ FOOTPRINT_REUSE = 1100;
 DANCER_LEFT_XOFF = -30;
 DANCER_RIGTH_XOFF = 30;
 POINTER_WIDTH = 50;
-FOOTPRINT_WIDTH = 100;
+FOOTPRINT_WIDTH = 50;
+FOOTPRINT_HEIGHT = 100;
 
 //////////////////////////////////
 
@@ -15,13 +16,22 @@ function footprint () {
     document.body.appendChild(this.img);
 }
 
+stepimgs = {}
+stepimgs['step'] = "img/step.png";
+stepimgs['ball'] = "img/ball.png";
+stepimgs['edge'] = "img/edge.png"; 
+stepimgs['heel'] = "img/heel.png"; 
+stepimgs['shuf'] = "img/shuf.png"; 
+stepimgs['tip'] = "img/tip.png"; 
+stepimgs['stomp'] = "img/stomp.png"; 
+
 footprint.prototype.step = function(x, y, rot, type) {
     this.img.classList.remove("hidden", "fading");
     this.img.style.left = x - FOOTPRINT_WIDTH / 2;
-    this.img.style.top = -y - FOOTPRINT_WIDTH / 2;
+    this.img.style.top = -y - FOOTPRINT_HEIGHT / 2;
     this.img.style.transform = "rotate(" + rot + "deg)";
     //type
-    this.img.src = "step.png";
+    this.img.src = stepimgs[type];
 }
 
 footprint.prototype.fade = function() {
@@ -250,6 +260,8 @@ clock.prototype.run = function(start, end) {
     this.end = end;
     this.start = new Date().getTime() - start * 1000 / this.speed;
     this.sched_tout = setInterval(clock_call, self.tickdelta, this);
+    for(i = 0; i < this.hands.length; i++)
+        this.hands[i].next = 0;
     console.log("clk run"); 
 }
 
