@@ -1,0 +1,73 @@
+{
+    "dancer" : [
+    {
+        "name" : "d1",
+        "pos" : "400,-400,0",
+        "steps" : [
+        {
+            "beat"  : "0/1/8",
+            "pos"   : " 0,30,0",
+            "type"  : "r.shuf"},
+        {
+            "beat"  : "0/2/8",
+            "pos"   : "0,40,0",
+            "type"  : "r.ball"},
+        {
+            "beat"  : "0/3/8",
+            "pos"   : "0,20,0",
+            "type"  : "l.step"},
+        {
+            "beat"  : "0/4/8",
+            "pos"   : "0,40,0",
+            "type"  : "r.stomp"},
+        {
+            "beat"  : "0/5/8",
+            "pos"   : "0,0,0",
+            "type"  : "l.step"},
+        {
+            "beat"  : "0/6/8",
+            "pos"   : "60,15,70",
+            "type"  : "r.shuf"},
+        {
+            "beat"  : "0/7/8",
+            "pos"   : "60,0,70",
+            "type"  : "r.shuf"},
+        {
+            "beat"  : "0/8/8",
+            "pos"   : "0,0,0",
+            "type"  : "r.step"},
+        {
+            "beat"  : "1/1/8",
+            "pos"   : " 0,30,0",
+            "type"  : "l.shuf"},
+        {
+            "beat"  : "1/2/8",
+            "pos"   : "0,40,0",
+            "type"  : "l.ball"},
+        {
+            "beat"  : "1/3/8",
+            "pos"   : "0,20,0",
+            "type"  : "r.step"},
+        {
+            "beat"  : "1/4/8",
+            "pos"   : "0,40,0",
+            "type"  : "l.stomp"},
+        {
+            "beat"  : "1/5/8",
+            "pos"   : "0,0,0",
+            "type"  : "r.step"},
+        {
+            "beat"  : "1/6/8",
+            "pos"   : "-60,15,-70",
+            "type"  : "l.shuf"},
+        {
+            "beat"  : "1/7/8",
+            "pos"   : "-60,0,-70",
+            "type"  : "l.shuf"},
+        {
+            "beat"  : "1/8/8",
+            "pos"   : "0,0,0",
+            "type"  : "l.step"}
+        ]}
+    ]
+}

@@ -301,3 +301,63 @@ function beat(full, count, parts) {
         throw "time precision is only 128 parts";
     return full * 128 + count * (128 / parts);
 }
+
+//////////////////////////////////
+
+// STORAGE
+
+function fetchfile(uri, handler = null) {
+    var req = {
+        req : new XMLHttpRequest(),
+        data : null
+    };
+    req.req.onreadystatechange = function() {
+        if(req.readyState == 4 && req.status == 200){
+            data = req.responseText;
+            if(handler)
+                handler(data);
+        }
+    }
+    req.req.open("GET", uri, true);
+    req.req.send();
+    return req;
+}
+
+function loadfile(file, handler = nul) {
+    var req = {
+        file : file,
+        reader : new FileReader,
+        data : null
+    };
+    req.reader.onload = function() {
+        req.data = req.reader.result;
+        if(handler)
+            handler(req.data);
+    }
+    req.reader.readAsText(file);
+    return req;
+}
+
+
+function parsejson(jsondata) {
+    var data = JSON.parse(jsondata);
+    var root = document.body;
+
+    for(var i = 0; i < data.dancer.length; i++){
+        var dncr = data.dancer[i];
+        var pos = dncr.pos.split(",")
+        var ipos = [parseInt(pos[0]), parseInt(pos[1]), parseInt(pos[2])];
+        var d = new dancer(ipos[0], ipos[1], ipos[2], clk);
+        console.log("create new dancer");
+        for(var n = 0; n < dncr.steps.length; n++){
+            var stp = dncr.steps[n];
+            var sbeat = stp.beat.split("/");
+            var ibeat = [parseInt(sbeat[0]), parseInt(sbeat[1]), parseInt(sbeat[2])];
+            var tbeat = beat(ibeat[0], ibeat[1], ibeat[2]);
+            var pos = stp.pos.split(",");
+            var ipos = [parseInt(pos[0]), parseInt(pos[1]), parseInt(pos[2])];
+            var typ = stp.type.split(".");
+            d.steps.push(new step(tbeat, typ[0], ipos[0], ipos[1], ipos[2], typ[1])); 
+        }
+    }
+}
