@@ -7,13 +7,14 @@ var d1;
 var x;
 var clk;
 var p1, p2, p3;
+var s1;
 
 function init(){
     clk = new clock();
-    clk.speed = 64;
+    clk.speed = 32;
     
-    d1 = new dancer(400, -400, 0, clk);
-    d1.steps.push(
+    s1 = new sequence();
+    s1.steps.push(
         new step(beat(0,  1,  8), 'r',  0, 30,  0, 'shuf'),
         new step(beat(0,  2,  8), 'r',  0, 40,  0, 'ball'),
         new step(beat(0,  3,  8), 'l',  0, 20,  0, 'step'),
@@ -31,6 +32,9 @@ function init(){
         new step(beat(1,  7,  8), 'l',-60,  0,-70, 'shuf'),
         new step(beat(1,  8,  8), 'l',  0,  0,  0, 'step')
     );
+
+    d1 = new dancer(400, -400, 0, clk);
+    d1.addseq(0, 0, 0, 0, s1);
     /*d1.move.push(
         new movept(beat(0, 0, 4), 0, 0, 250, 400),
         new movept(beat(2, 0, 4), 500, 0, null, null)

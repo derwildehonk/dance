@@ -97,24 +97,40 @@ foot.prototype.step = function(x, y, rot, typ) {
 // STEP
 
 function step(beat, ft, x, y, rot, typ) {
-    this.time = beat;
+    this.beat = beat;
     this.foot = ft;
-    this.x = x;
-    this.y = y;
-    this.rot = rot;
+    this.pos = [x, y, rot];
     this.typ = typ;
 }
 
 //////////////////////////////////
 
-// MOVEPT
+// CURVE
 
-function movept(beat, x, y, sx, sy) {
-    this.time = beat;
-    this.x = x;
-    this.y = y;
-    this.sx = sx;
-    this.sy = sy;
+function curve() {
+    this.points = []
+}
+
+curve.prototype.addpoint = function(beat, x, y, sx, sy) {
+    item =  {
+        beat : beat,
+        x : x,
+        y : y,
+        sx: sx,
+        sy : sy
+    };
+    this.points.push(item);
+}
+
+curve.prototype.get = function(now) {
+    if(this.points.length < 2)
+        return [0, 0, 0];
+    var i;
+    for(i = 1; i < this.points.length - 1; i += 1){
+        if(this.points[i].beat > now)
+            break;
+    }
+    return bezier(now, this.points[i-1], this.points[i]);
 }
 
 function bezier(time, pt1, pt2) {
@@ -141,6 +157,8 @@ function bezier(time, pt1, pt2) {
         tx = (rat - 1) * pt1.x + (1 - 2 * rat) * pt1.sx + pt2.x * rat;
         ty = (rat - 1) * pt1.y + (1 - 2 * rat) * pt1.sy + pt2.y * rat;
     }
+    if(ty == 0 && tx == 0)
+        rot = 0;
     if(ty == 0)
         rot = tx < 0 ? 270 : 90;
     else
@@ -164,18 +182,25 @@ function addpt(base, pt) {
 
 //////////////////////////////////
 
+// SEQUENCE
+
+function sequence() {
+    this.steps = []
+    this.curve = new curve();
+}
+
+//////////////////////////////////
+
 // DANCER
 
 function dancer(x, y, r, clk) {
     this.clk = clk;
-    this.x = x;
-    this.y = y;
-    this.rot = r;
+    this.pos = [x, y, r];
     this.left = new foot();
     this.right = new foot();
     this.pointer = new pointer();
-    this.steps = [];
-    this.move = [];
+    this.seq = [];
+    this.curve = new curve;
     this.lasttick = -1;
     //init
     this.clk.register(this, null);
@@ -187,18 +212,33 @@ function dancer(x, y, r, clk) {
 
 dancer.prototype.clk_call = function (now) {
     var i;
-    var mov = this.getpos(now);
+    var mov = this.curve.get(now);
+    mov = addpt(mov, this.pos);
     this.pointer.move(mov[0], mov[1], mov[2]);
-    for(i = 0; i < this.steps.length; i++){
-        if(now >= this.steps[i].time && this.lasttick < this.steps[i].time)
-            this.dostep(i);
+    for(i = 0; i < this.seq.length; i++){
+        var begin = this.seq[i].begin;
+        var seq = this.seq[i].seq;
+        for(n = 0; n < seq.steps.length; n++){
+            var t = seq.steps[n].beat + begin;
+            if(this.lasttick < t && now > t)
+                this.dostep(i, n);
+        }
     }
     this.lasttick = now;
     return null;
 }
 
-dancer.prototype.dostep = function(num) {
-    var st = this.steps[num];
+dancer.prototype.addseq = function(x, y, r, begin, seq) {
+    seqitem = {
+        seq : seq,
+        pos : [x, y, r],
+        beat : beat
+    };
+    this.seq.push(seqitem);
+}
+
+dancer.prototype.dostep = function(sq, stp) {
+    var st = this.seq[sq].seq.steps[stp];
     var ft, ftx;
     if(st.foot == 'l'){
         ft = this.left;
@@ -207,28 +247,12 @@ dancer.prototype.dostep = function(num) {
         ft = this.right;
         ftx = DANCER_RIGTH_XOFF;
     }
-    var mov = this.getpos(st.time);
-    var mov2 = addpt(mov, [st.x, st.y, st.rot]);
-    var mov3 = addpt(mov2, [ftx, 0, 0]);
-    ft.step(mov3[0], mov3[1], mov3[2], st.typ);
-}
-
-dancer.prototype.getpos = function(now) {
-    if(this.move.length < 2)
-        return [this.x, this.y, this.rot]
-    var i;
-    for(i = 0; i < this.move.length; i++){
-        if(now > this.move[i].time)
-            break;
-    }
-    if(i >= this.move.length - 1)
-        i = this.move.length - 2;
-    if(now < this.move[i].time)
-        now = this.move[i].time;
-    if(now > this.move[i+1].time)
-        now = this.move[i+1].time;
-    bz = bezier(now, this.move[i], this.move[i+1]);
-    return addpt([this.x, this.y, this.rot], bz);
+    var pos = addpt(this.pos, this.curve.get(st.beat + this.seq.beat)) //add dancer curve
+    pos = addpt(pos, this.seq[sq].pos) //add sequence anchor
+    pos = addpt(pos, this.seq[sq].seq.curve.get(st.beat)); //add seuence curve
+    pos = addpt(pos, st.pos); //add step pos
+    pos = addpt(pos, [ftx, 0, 0]);
+    ft.step(pos[0], pos[1], pos[2], st.typ);
 }
 
 //////////////////////////////////
