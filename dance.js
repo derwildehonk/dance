@@ -236,59 +236,50 @@ dancer.prototype.getpos = function(now) {
 // CLOCK
 
 function clock() {
-    this.now = 0;
     this.speed = 128; //1 beat per sec
     this.start = null;
     this.end = null;
+    this.loop = false;
     this.hands = [];
     this.sched_tout = null;
     this.tickdelta = 1000 / 64;
 }
 
-function clock_hand(handler, delta) {
-    this.handler = handler;
-    this.delta = delta;
-    this.next = 0;
+clock.prototype.register = function(handler) {
+    this.hands.push(handler);
 }
 
-clock.prototype.register = function(handler, tickdelta) {
-    this.hands.push(new clock_hand(handler, tickdelta));
-}
-
-clock.prototype.run = function(start, end) {
-    this.now = start;
+clock.prototype.run = function(start, end, loop = false) {
+    this.start = start;
     this.end = end;
-    this.start = new Date().getTime() - start * 1000 / this.speed;
+    this.loop = loop;
+    this.begin = new Date().getTime() - start * 1000 / this.speed;
     this.sched_tout = setInterval(clock_call, self.tickdelta, this);
     for(i = 0; i < this.hands.length; i++)
-        this.hands[i].next = 0;
-    console.log("clk run"); 
+        this.hands[i].clk_call(start);
+    console.log("clk run " + this.begin);
 }
 
 clock.prototype.getnow = function() {
     var now = new Date().getTime();
-    this.now = (now - this.start) * this.speed / 1000;
-    return this.now;
+    now = (now - this.begin) * this.speed / 1000;
+    return now;
 }
 
 function clock_call(clock) {
     var now = clock.getnow();
-    for(i = 0; i < clock.hands.length; i++){
-        hand = clock.hands[i];
-        if(now >= hand.next){
-            next = hand.handler.clk_call(now);
-            if(next != null)
-                hand.next = next;
-            else{
-                hand.next = now;
-                if(hand.delta != null)
-                    hand.next += hand.delta;
-            }
-        }
-    }
+    document.getElementById("now").innerHTML = now;
+    for(i = 0; i < clock.hands.length; i++)
+        hand = clock.hands[i].clk_call(now);
     if(now >= clock.end){
-        console.log("clk stop");
-        clearTimeout(clock.sched_tout);
+        if(clock.loop){
+            clock.begin += (clock.end - clock.start) * 1000 / clock.speed;
+            console.log("clk wrap " + clock.begin);
+            clock_call(clock);
+        }else{
+            console.log("clk stop");
+            clearTimeout(clock.sched_tout);
+        }
     }
 }
 
