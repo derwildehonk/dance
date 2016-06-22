@@ -1,3 +1,7 @@
+// dictionary
+// dig - heel edge; no weight
+// spank - swing back; ball tap
+
 FOOTPRINT_REUSE = 1100;
 DANCER_LEFT_XOFF = -30;
 DANCER_RIGTH_XOFF = 30;
@@ -20,10 +24,12 @@ stepimgs = {}
 stepimgs['step'] = "img/step.png";
 stepimgs['ball'] = "img/ball.png";
 stepimgs['edge'] = "img/edge.png"; 
-stepimgs['heel'] = "img/heel.png"; 
+stepimgs['heel'] = "img/step.png"; 
 stepimgs['shuf'] = "img/shuf.png"; 
 stepimgs['tip'] = "img/tip.png"; 
-stepimgs['stomp'] = "img/stomp.png"; 
+stepimgs['stomp'] = "img/stomp.png";
+stepimgs['dig'] = "img/edge.png";
+stepimgs['touch'] = "img/shuf.png"; 
 
 footprint.prototype.step = function(x, y, rot, type) {
     this.img.classList.remove("hidden", "fading");
@@ -60,7 +66,7 @@ pointer.prototype.move = function(x, y, rot) {
     this.img.style.left = x - POINTER_WIDTH / 2;
     this.img.style.top = -y - POINTER_WIDTH / 2;
     this.img.style.transform = "rotate(" + rot + "deg)";
-    this.img.src = "arrow.png";
+    this.img.src = "img/pointer.png";
     document.body.appendChild(this.img);
 } 
 
@@ -111,6 +117,15 @@ function curve() {
     this.points = []
 }
 
+curve.prototype.interval = function() {
+    var len = this.points.length;
+    if(len == 0)
+        return [0, 0];
+    if(len == 1)
+        return [this.points[0].beat, this.points[0].beat];
+    return [this.points[0].beat, this.points[len-1].beat]
+}
+
 curve.prototype.addpoint = function(beat, x, y, sx, sy) {
     item =  {
         beat : beat,
@@ -134,16 +149,16 @@ curve.prototype.get = function(now) {
 }
 
 function bezier(time, pt1, pt2) {
-    if(pt1.time >= pt2.time){
+    if(pt1.beat >= pt2.beat){
         tmp = pt1;
         pt1 = pt2;
         pt2 = tmp;
     }
-    if(time < pt1.time)
-        time = pt1.time;
-    if(time > pt2.time)
-        time = pt2.time;
-    var rat = (time - pt1.time) / (pt2.time - pt1.time);
+    if(time < pt1.beat)
+        time = pt1.beat;
+    if(time > pt2.beat)
+        time = pt2.beat;
+    var rat = (time - pt1.beat) / (pt2.beat - pt1.beat);
     var x, y, tx, ty;
     if(pt1.sx == null){//linear?
         x = pt1.x + (pt2.x - pt1.x) * rat;
@@ -159,7 +174,7 @@ function bezier(time, pt1, pt2) {
     }
     if(ty == 0 && tx == 0)
         rot = 0;
-    if(ty == 0)
+    else if(ty == 0)
         rot = tx < 0 ? 270 : 90;
     else
         rot = Math.atan(tx / ty) * 180 / Math.PI + (ty < 0 ? 180 : 0);
@@ -168,11 +183,16 @@ function bezier(time, pt1, pt2) {
     return [x, y, rot];
 }
 
-function addpt(base, pt) {
+function addpt(base, pt, mirror = false) {
+    var p = pt.slice();
+    if(mirror){
+        p[0] = -p[0];
+        p[2] = -p[2];
+    }
     var ang = base[2] * Math.PI / 180.;
-    var nx = base[0] + pt[0] * Math.cos(ang) + pt[1] * Math.sin(ang);
-    var ny = base[1] - pt[0] * Math.sin(ang) + pt[1] * Math.cos(ang);
-    var rot = base[2] + pt[2];
+    var nx = base[0] + p[0] * Math.cos(ang) + p[1] * Math.sin(ang);
+    var ny = base[1] - p[0] * Math.sin(ang) + p[1] * Math.cos(ang);
+    var rot = base[2] + p[2];
     while(rot > 360)
         rot -= 360;
     while(rot < 0)
@@ -212,35 +232,48 @@ function dancer(x, y, r, clk) {
 
 dancer.prototype.clk_call = function (now) {
     var i;
-    var mov = this.curve.get(now);
-    mov = addpt(mov, this.pos);
-    this.pointer.move(mov[0], mov[1], mov[2]);
+    var smov = null;
     for(i = 0; i < this.seq.length; i++){
-        var begin = this.seq[i].begin;
+        var begin = this.seq[i].beat;
         var seq = this.seq[i].seq;
+        var intvl = seq.curve.interval();
+        if(now - begin >= intvl[0] & now - begin < intvl[1]){
+            console.log("move pointer from seq " + i);
+            smov = seq.curve.get(now - begin)
+        }
         for(n = 0; n < seq.steps.length; n++){
             var t = seq.steps[n].beat + begin;
-            if(this.lasttick < t && now > t)
+            if(this.lasttick < t && now >= t)
                 this.dostep(i, n);
         }
     }
+    var mov = this.curve.get(now);
+    mov = addpt(mov, this.pos);
+    if(smov != null)
+        mov = addpt(mov, smov);
+    this.pointer.move(mov[0], mov[1], mov[2]);
     this.lasttick = now;
     return null;
 }
 
-dancer.prototype.addseq = function(x, y, r, begin, seq) {
+dancer.prototype.addseq = function(x, y, r, begin, seq, mirror) {
     seqitem = {
         seq : seq,
         pos : [x, y, r],
-        beat : beat
+        beat : begin,
+        mirror : mirror
     };
     this.seq.push(seqitem);
 }
 
 dancer.prototype.dostep = function(sq, stp) {
     var st = this.seq[sq].seq.steps[stp];
-    var ft, ftx;
-    if(st.foot == 'l'){
+    var mr = this.seq[sq].mirror;
+    var ft, ftx, ftt;
+    ftt = st.foot;
+    if(mr)
+        ftt = ftt == 'l' ? 'r' : 'l';
+    if(ftt == 'l'){
         ft = this.left;
         ftx = DANCER_LEFT_XOFF;
     }else{
@@ -249,8 +282,8 @@ dancer.prototype.dostep = function(sq, stp) {
     }
     var pos = addpt(this.pos, this.curve.get(st.beat + this.seq.beat)) //add dancer curve
     pos = addpt(pos, this.seq[sq].pos) //add sequence anchor
-    pos = addpt(pos, this.seq[sq].seq.curve.get(st.beat)); //add seuence curve
-    pos = addpt(pos, st.pos); //add step pos
+    pos = addpt(pos, this.seq[sq].seq.curve.get(st.beat), mr); //add seuence curve
+    pos = addpt(pos, st.pos, mr); //add step pos
     pos = addpt(pos, [ftx, 0, 0]);
     ft.step(pos[0], pos[1], pos[2], st.typ);
 }
@@ -292,7 +325,7 @@ clock.prototype.getnow = function() {
 
 function clock_call(clock) {
     var now = clock.getnow();
-    document.getElementById("now").innerHTML = now;
+    document.getElementById("now").innerHTML = unbeat(now, 8);
     for(i = 0; i < clock.hands.length; i++)
         hand = clock.hands[i].clk_call(now);
     if(now >= clock.end){
@@ -311,11 +344,25 @@ function clock_call(clock) {
 
 // FUNCTIONS
 
-function beat(full, count, parts) {
-    if(parts > 128)
+function beat(full, count, parts, count1 = null, parts1 = null) {
+    if(parts > 128 || parts > 128)
         throw "time precision is only 128 parts";
-    return full * 128 + count * (128 / parts);
+    var ret = full * 128 + count * (128 / parts);
+    if(count1 != null)
+        ret += count1 * (128 / parts1);
+    return ret;
 }
+
+function unbeat(beat, parts) {
+    var full = 0, count = 0;
+    while(beat > 128){
+        beat -= 128;
+        full += 1;
+    }
+    count = Math.floor(beat / (128 / parts)) + 1;
+    return full + " " + count + "/" + parts;
+}
+
 
 //////////////////////////////////
 
