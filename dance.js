@@ -3,8 +3,8 @@
 // spank - swing back; ball tap
 
 FOOTPRINT_REUSE = 1100;
-DANCER_LEFT_XOFF = -30;
-DANCER_RIGTH_XOFF = 30;
+DANCER_LEFT_XOFF = -40;
+DANCER_RIGTH_XOFF = 40;
 POINTER_WIDTH = 50;
 FOOTPRINT_WIDTH = 50;
 FOOTPRINT_HEIGHT = 100;
@@ -100,17 +100,6 @@ foot.prototype.step = function(x, y, rot, typ) {
 
 //////////////////////////////////
 
-// STEP
-
-function step(beat, ft, x, y, rot, typ) {
-    this.beat = beat;
-    this.foot = ft;
-    this.pos = [x, y, rot];
-    this.typ = typ;
-}
-
-//////////////////////////////////
-
 // CURVE
 
 function curve() {
@@ -126,11 +115,12 @@ curve.prototype.interval = function() {
     return [this.points[0].beat, this.points[len-1].beat]
 }
 
-curve.prototype.addpoint = function(beat, x, y, sx, sy) {
+curve.prototype.addpoint = function(beat, x, y, rot, sx, sy) {
     item =  {
         beat : beat,
         x : x,
         y : y,
+        r : rot,
         sx: sx,
         sy : sy
     };
@@ -159,7 +149,7 @@ function bezier(time, pt1, pt2) {
     if(time > pt2.beat)
         time = pt2.beat;
     var rat = (time - pt1.beat) / (pt2.beat - pt1.beat);
-    var x, y, tx, ty;
+    var x, y, tx, ty, rot;
     if(pt1.sx == null){//linear?
         x = pt1.x + (pt2.x - pt1.x) * rat;
         y = pt1.y + (pt2.y - pt1.y) * rat;
@@ -172,14 +162,23 @@ function bezier(time, pt1, pt2) {
         tx = (rat - 1) * pt1.x + (1 - 2 * rat) * pt1.sx + pt2.x * rat;
         ty = (rat - 1) * pt1.y + (1 - 2 * rat) * pt1.sy + pt2.y * rat;
     }
-    if(ty == 0 && tx == 0)
-        rot = 0;
-    else if(ty == 0)
-        rot = tx < 0 ? 270 : 90;
-    else
-        rot = Math.atan(tx / ty) * 180 / Math.PI + (ty < 0 ? 180 : 0);
-    if(rot > 360)
+    if(pt1.r != null){
+        if(pt2.r != null)
+            rot = pt1.r + (pt2.r - pt1.r) * rat;
+        else
+            rot = pt1.r;
+    }else{ 
+        if(ty == 0 && tx == 0)
+            rot = 0;
+        else if(ty == 0)
+            rot = tx < 0 ? 270 : 90;
+        else
+            rot = Math.atan(tx / ty) * 180 / Math.PI + (ty < 0 ? 180 : 0);
+    }
+    while(rot > 360)
         rot -= 360;
+    while(rot < 0)
+        rot += 360;
     return [x, y, rot];
 }
 
@@ -205,8 +204,66 @@ function addpt(base, pt, mirror = false) {
 // SEQUENCE
 
 function sequence() {
-    this.steps = []
-    this.curve = new curve();
+    this.steps = [];
+    this.curve = [];
+    this.subs = [];
+}
+
+sequence.prototype.addstep = function(beat, pos, foot, typ){
+    var o = {beat : beat, pos : pos, foot : foot, typ : typ};
+    for(var i = 0; i < this.steps.length; i++){
+        if(this.steps[i].beat > o.beat){
+            this.steps.splice(i, 0, o);
+            return;
+        }
+    }
+    this.steps.push(o);
+}
+
+sequence.prototype.addseq = function(beat, pos, seq){
+    var o = {seq : seq, pos : pos, beat : beat};
+    this.subs.push(o);
+}
+
+sequence.prototype.addpoint = function(beat, x, y, rot, sx, sy){
+    o = {beat : beat, x : x, y : y, r : rot, sx : sx, sy : sy};
+    for(var i = 0; i < this.curve.length; i++){
+        if(this.curve[i].beat > o.beat){
+            this.curve.splice(i, 0, o);
+            return;
+        }
+    }
+    this.curve.push(o);
+}
+
+sequence.prototype.getpos = function(now){
+    var pos;
+    //curve
+    var npoints = this.curve.length;
+    if(npoints == 1) //only one point - take this one
+        pos = this.curve[0].pos;
+    else if(npoints >= 2){
+        var n;
+        for(n = 0; n < npoints; n++){
+            if(now < this.curve[n].beat)
+                break;
+        }
+        if(n == 0) //smaller than first point - take this one
+            pos = this.curve[0].pos;
+        else if(n >= npoints) //bigger than last point - take this one
+            pos = this.curve[npoints-1].pos;
+        else
+            pos = bezier(now, this.curve[n-1], this.curve[n]);
+    }else
+        pos = [0, 0, 0];
+    //recurse on subs
+    var nsubs = this.subs.length;
+    for(n = 0; n < nsubs; n++){
+        var run = this.subs[n];
+        var spos = run.seq.getpos(now - run.beat);
+        spos = addpt(run.pos, spos);
+        pos = addpt(pos, spos);
+    }
 }
 
 //////////////////////////////////
@@ -231,30 +288,60 @@ function dancer(x, y, r, clk) {
 }
 
 dancer.prototype.clk_call = function (now) {
-    var i;
-    var smov = null;
-    for(i = 0; i < this.seq.length; i++){
-        var begin = this.seq[i].beat;
-        var seq = this.seq[i].seq;
-        var intvl = seq.curve.interval();
-        if(now - begin >= intvl[0] & now - begin < intvl[1]){
-            console.log("move pointer from seq " + i);
-            smov = seq.curve.get(now - begin)
-        }
-        for(n = 0; n < seq.steps.length; n++){
-            var t = seq.steps[n].beat + begin;
+    var s, p;
+    var pt1, pt2 = null;
+    for(s = 0; s < this.seq.length; s++){
+        var item = this.seq[i];
+        for(n = 0; n < item.seq.steps.length; n++){
+            var t = item.seq.steps[n].beat + item.beat;
             if(this.lasttick < t && now >= t)
                 this.dostep(i, n);
         }
     }
-    var mov = this.curve.get(now);
-    mov = addpt(mov, this.pos);
-    if(smov != null)
-        mov = addpt(mov, smov);
+    var mov = this.getpos(now);
     this.pointer.move(mov[0], mov[1], mov[2]);
     this.lasttick = now;
     return null;
 }
+
+dancer.prototype.getpos = function(now)
+{
+    var s, p;
+    var cmov = null;
+    var t2, p2;
+    var p1 = null, t1 = null;
+    for(s = 0; s < this.seq.length; s++){
+        var sitm = this.seq[s];
+        var intvl = sitm.seq.curve.interval();
+        if(now - sitm.beat > intvl[1] && s + 1 < this.seq.length)
+            continue;
+        t2 = intvl[0] + sitm.beat;
+        p2 = sitm.seq.curve.get(now - sitm.beat);
+        if(sitm.mirror)
+            p2[0] = -p2[0];
+        if(now < t2 && s != 0){
+            t1 = this.seq[s-1].seq.curve.interval()[1] + this.seq[s-1].beat;
+            p1 = this.seq[s-1].seq.curve.get(now - this.seq[s-1].beat);
+            if(t1 == t2){
+                cmov = p2;
+                break;
+            }
+            var rat = (now - t1) / (t2 - t1);
+            var p1 = this.seq[s-1].seq.curve.points[this.seq[s-1].seq.curve.points.length-1];
+            var x = (p2.x - p1.x) * rat;
+            var y = (p2.y - p1.y) * rat;
+            var r = (p2.r - p1.r) * rat;
+            cmov = [x, y, r];
+            break;
+        }
+        cmov = p2;
+        break;
+    }
+    var pos = addpt(this.pos, this.curve.get(now));
+    pos = addpt(pos, cmov);
+    return pos;
+}
+    
 
 dancer.prototype.addseq = function(x, y, r, begin, seq, mirror) {
     seqitem = {
