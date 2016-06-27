@@ -248,12 +248,15 @@ sequence.prototype.getpos = function(now){
             if(now < this.curve[n].beat)
                 break;
         }
-        if(n == 0) //smaller than first point - take this one
-            pos = this.curve[0].pos;
-        else if(n >= npoints) //bigger than last point - take this one
-            pos = this.curve[npoints-1].pos;
-        else
-            pos = bezier(now, this.curve[n-1], this.curve[n]);
+        var tme = now;
+        if(n == 0){ //smaller than first point - take this one
+            tme = this.curve[0].beat;
+            n = 1; 
+        }else if(n >= npoints){ //bigger than last point - take this one
+            tme = this.curve[npoints-1].beat;
+            n = npoints - 1;
+        }
+        pos = bezier(now, this.curve[n-1], this.curve[n]);
     }else
         pos = [0, 0, 0];
     //recurse on subs
@@ -264,6 +267,7 @@ sequence.prototype.getpos = function(now){
         spos = addpt(run.pos, spos);
         pos = addpt(pos, spos);
     }
+    return pos;
 }
 
 //////////////////////////////////
@@ -276,35 +280,20 @@ function dancer(x, y, r, clk) {
     this.left = new foot();
     this.right = new foot();
     this.pointer = new pointer();
-    this.seq = [];
-    this.curve = new curve;
+    this.seq = new sequence();
     this.lasttick = -1;
     //init
     this.clk.register(this, null);
-    pt = addpt([x, y, r], [DANCER_LEFT_XOFF, 0, 0]);
-    this.left.step(pt[0], pt[1], pt[2], "step");
-    pt = addpt([x, y, r], [DANCER_RIGTH_XOFF, 0, 0]);
-    this.right.step(pt[0], pt[1], pt[2], "step");
 }
 
 dancer.prototype.clk_call = function (now) {
-    var s, p;
-    var pt1, pt2 = null;
-    for(s = 0; s < this.seq.length; s++){
-        var item = this.seq[i];
-        for(n = 0; n < item.seq.steps.length; n++){
-            var t = item.seq.steps[n].beat + item.beat;
-            if(this.lasttick < t && now >= t)
-                this.dostep(i, n);
-        }
-    }
-    var mov = this.getpos(now);
-    this.pointer.move(mov[0], mov[1], mov[2]);
+    var pos = addpt(this.pos, this.seq.getpos(now));
+    this.pointer.move(pos[0], pos[1], pos[2]);
     this.lasttick = now;
     return null;
 }
 
-dancer.prototype.getpos = function(now)
+/*dancer.prototype.getpos = function(now)
 {
     var s, p;
     var cmov = null;
@@ -374,6 +363,7 @@ dancer.prototype.dostep = function(sq, stp) {
     pos = addpt(pos, [ftx, 0, 0]);
     ft.step(pos[0], pos[1], pos[2], st.typ);
 }
+*/
 
 //////////////////////////////////
 
@@ -434,9 +424,9 @@ function clock_call(clock) {
 function beat(full, count, parts, count1 = null, parts1 = null) {
     if(parts > 128 || parts > 128)
         throw "time precision is only 128 parts";
-    var ret = full * 128 + count * (128 / parts);
+    var ret = full * 128 + (count - 1) * (128 / parts);
     if(count1 != null)
-        ret += count1 * (128 / parts1);
+        ret += (count1 - 1) * (128 / parts1);
     return ret;
 }
 
