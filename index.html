@@ -75,8 +75,9 @@ function init(){
 
     d1 = new dancer(400, -400, 0, clk);
     d1.seq.addseq(beat(0, 1, 4), [0, 0, 0], s1);
-    d1.seq.addpoint(beat(0, 1, 4), 0, 0, 75, 0, 100);
-    d1.seq.addpoint(beat(1, 1, 4), 200, 300, null, 100, 300);
+    d1.seq.addseq(beat(1, 1, 4), [0, 0, 0], s1, true);
+    //d1.seq.addpoint(beat(0, 1, 4), 0, 0, null, 0, 300);
+    //d1.seq.addpoint(beat(1, 1, 4), 200, 300, null, null, null);
 
     clk.run(beat(0, 1, 4), beat(1, 1, 4), true);
 

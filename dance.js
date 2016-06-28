@@ -220,8 +220,8 @@ sequence.prototype.addstep = function(beat, pos, foot, typ){
     this.steps.push(o);
 }
 
-sequence.prototype.addseq = function(beat, pos, seq){
-    var o = {seq : seq, pos : pos, beat : beat};
+sequence.prototype.addseq = function(beat, pos, seq, mir = false){
+    var o = {seq : seq, pos : pos, beat : beat, mirror : mir};
     this.subs.push(o);
 }
 
@@ -236,7 +236,7 @@ sequence.prototype.addpoint = function(beat, x, y, rot, sx, sy){
     this.curve.push(o);
 }
 
-sequence.prototype.getpos = function(now){
+sequence.prototype.getpos = function(now, mir){
     var pos;
     //curve
     var npoints = this.curve.length;
@@ -259,15 +259,33 @@ sequence.prototype.getpos = function(now){
         pos = bezier(now, this.curve[n-1], this.curve[n]);
     }else
         pos = [0, 0, 0];
+    if(mir)
+        pos[0] = -pos[0]; 
     //recurse on subs
     var nsubs = this.subs.length;
     for(n = 0; n < nsubs; n++){
         var run = this.subs[n];
-        var spos = run.seq.getpos(now - run.beat);
+        var spos = run.seq.getpos(now - run.beat, mir ^ run.mirror);
         spos = addpt(run.pos, spos);
         pos = addpt(pos, spos);
     }
     return pos;
+}
+
+sequence.prototype.getsteps = function(t1, t2, troot = 0, mirror = false){
+    var ret = new Array();
+    for(var i = 0; i < this.steps.length; i++){
+        if(t1 <= this.steps[i].beat && t2 > this.steps[i].beat){
+            var o = {step : this.steps[i], beat : troot, mirror : mirror};  
+            ret.push(o);
+        }
+    }
+    for(var i = 0; i < this.subs.length; i++){
+        var off = this.subs[i].beat;
+        var pts = this.subs[i].seq.getsteps(t1 - off, t2 - off, troot + off, false);
+        ret.push.apply(ret, pts); 
+    }
+    return ret;
 }
 
 //////////////////////////////////
@@ -281,7 +299,6 @@ function dancer(x, y, r, clk) {
     this.right = new foot();
     this.pointer = new pointer();
     this.seq = new sequence();
-    this.lasttick = -1;
     //init
     this.clk.register(this, null);
 }
@@ -289,8 +306,29 @@ function dancer(x, y, r, clk) {
 dancer.prototype.clk_call = function (now) {
     var pos = addpt(this.pos, this.seq.getpos(now));
     this.pointer.move(pos[0], pos[1], pos[2]);
+    var pts = this.seq.getsteps(this.lasttick, now);
+    for(var pt = 0; pt < pts.length; pt++)
+        this.dostep(pts[pt].step, pts[pt].beat, pts[pt].mirror);
     this.lasttick = now;
     return null;
+}
+
+dancer.prototype.dostep = function(step, beat, mirror) {
+    var ft, ftx, ftt;
+    ftt = step.foot;
+    if(mirror)
+        ftt = ftt == 'l' ? 'r' : 'l';
+    if(ftt == 'l'){
+        ft = this.left;
+        ftx = DANCER_LEFT_XOFF;
+    }else{
+        ft = this.right;
+        ftx = DANCER_RIGTH_XOFF;
+    }
+    var pos = addpt(this.pos, this.seq.getpos(beat + step.beat));
+    pos = addpt(pos, step.pos, mirror); //add step pos
+    pos = addpt(pos, [ftx, 0, 0]);
+    ft.step(pos[0], pos[1], pos[2], step.typ);
 }
 
 /*dancer.prototype.getpos = function(now)
@@ -377,6 +415,7 @@ function clock() {
     this.hands = [];
     this.sched_tout = null;
     this.tickdelta = 1000 / 64;
+    this.lasttick = null;
 }
 
 clock.prototype.register = function(handler) {
@@ -388,6 +427,7 @@ clock.prototype.run = function(start, end, loop = false) {
     this.end = end;
     this.loop = loop;
     this.begin = new Date().getTime() - start * 1000 / this.speed;
+    this.lasttick = 0;
     this.sched_tout = setInterval(clock_call, self.tickdelta, this);
     for(i = 0; i < this.hands.length; i++)
         this.hands[i].clk_call(start);
@@ -404,10 +444,11 @@ function clock_call(clock) {
     var now = clock.getnow();
     document.getElementById("now").innerHTML = unbeat(now, 8);
     for(i = 0; i < clock.hands.length; i++)
-        hand = clock.hands[i].clk_call(now);
+        hand = clock.hands[i].clk_call(now, this.lasttick - now);
     if(now >= clock.end){
         if(clock.loop){
             clock.begin += (clock.end - clock.start) * 1000 / clock.speed;
+            clock.lasttick -= clock.end - clock.start;
             console.log("clk wrap " + clock.begin);
             clock_call(clock);
         }else{
