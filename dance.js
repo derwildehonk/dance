@@ -3,8 +3,8 @@
 // spank - swing back; ball tap
 
 FOOTPRINT_REUSE = 1100;
-DANCER_LEFT_XOFF = -40;
-DANCER_RIGTH_XOFF = 40;
+DANCER_LEFT_XOFF = -50;
+DANCER_RIGTH_XOFF = 50;
 POINTER_WIDTH = 50;
 FOOTPRINT_WIDTH = 50;
 FOOTPRINT_HEIGHT = 100;
@@ -29,7 +29,9 @@ stepimgs['shuf'] = "img/shuf.png";
 stepimgs['tip'] = "img/tip.png"; 
 stepimgs['stomp'] = "img/stomp.png";
 stepimgs['dig'] = "img/edge.png";
-stepimgs['touch'] = "img/shuf.png"; 
+stepimgs['touch'] = "img/shuf.png";
+stepimgs['fly'] = "img/fly.png";
+stepimgs['spank'] = "img/shuf.png";
 
 footprint.prototype.step = function(x, y, rot, type) {
     this.img.classList.remove("hidden", "fading");
@@ -282,7 +284,8 @@ sequence.prototype.getsteps = function(t1, t2, troot = 0, mirror = false){
     }
     for(var i = 0; i < this.subs.length; i++){
         var off = this.subs[i].beat;
-        var pts = this.subs[i].seq.getsteps(t1 - off, t2 - off, troot + off, false);
+        var mir = this.subs[i].mirror ^ mirror;
+        var pts = this.subs[i].seq.getsteps(t1 - off, t2 - off, troot + off, mir);
         ret.push.apply(ret, pts); 
     }
     return ret;
@@ -303,13 +306,12 @@ function dancer(x, y, r, clk) {
     this.clk.register(this, null);
 }
 
-dancer.prototype.clk_call = function (now) {
-    var pos = addpt(this.pos, this.seq.getpos(now));
+dancer.prototype.clk_call = function (now, delta) {
+    var pos = addpt(this.pos, this.seq.getpos(now, false));
     this.pointer.move(pos[0], pos[1], pos[2]);
-    var pts = this.seq.getsteps(this.lasttick, now);
+    var pts = this.seq.getsteps(now - delta, now);
     for(var pt = 0; pt < pts.length; pt++)
         this.dostep(pts[pt].step, pts[pt].beat, pts[pt].mirror);
-    this.lasttick = now;
     return null;
 }
 
@@ -444,7 +446,7 @@ function clock_call(clock) {
     var now = clock.getnow();
     document.getElementById("now").innerHTML = unbeat(now, 8);
     for(i = 0; i < clock.hands.length; i++)
-        hand = clock.hands[i].clk_call(now, this.lasttick - now);
+        hand = clock.hands[i].clk_call(now, now - clock.lasttick);
     if(now >= clock.end){
         if(clock.loop){
             clock.begin += (clock.end - clock.start) * 1000 / clock.speed;
@@ -456,6 +458,7 @@ function clock_call(clock) {
             clearTimeout(clock.sched_tout);
         }
     }
+    clock.lasttick = now;
 }
 
 //////////////////////////////////

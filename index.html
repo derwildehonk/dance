@@ -11,16 +11,17 @@ var s1, s2;
 
 function init(){
     clk = new clock();
-    clk.speed = 16;
+    clk.speed = 64;
     
     s1 = new sequence();
     s1.addstep(beat(0,  1,  8), [ 0, 30,  0], 'r', 'shuf'),
     s1.addstep(beat(0,  2,  8), [ 0, 40,  0], 'r', 'ball'),
     s1.addstep(beat(0,  3,  8), [ 0, 20,  0], 'l', 'step'),
     s1.addstep(beat(0,  4,  8), [ 0, 40,  0], 'r', 'stomp'),
+    s1.addstep(beat(0,4,8,1,16),[ 0, 10,  0], 'l', 'fly'),
     s1.addstep(beat(0,  5,  8), [ 0,  0,  0], 'l', 'step'),
     s1.addstep(beat(0,  6,  8), [60, 15, 70], 'r', 'shuf'),
-    s1.addstep(beat(0,  7,  8), [60,  0, 70], 'r', 'shuf'),
+    s1.addstep(beat(0,  7,  8), [60,  0, 70], 'r', 'spank'),
     s1.addstep(beat(0,  8,  8), [ 0,  0,  0], 'r', 'step')
 
     s2 = new sequence();
@@ -56,7 +57,7 @@ function init(){
         new step(beat(1, 8, 8), 'r', 0, 0, 0, 'heel')
     );
     s3.curve.addpoint(beat(0, 1, 8), 0, 0, 0, null, null);
-    s3.curve.addpoint(beat(0, 4, 8), 0, 0, 0, null, null);
+    s3.curve.addpoint(beat(0, 4, 8), 0, 0, 0, null, null);more 
     s3.curve.addpoint(beat(1, 8, 8), -200, 0, 0, null, null);
 
     s4 = new sequence();
@@ -74,14 +75,52 @@ function init(){
     s4.curve.addpoint(beat(1, 4, 4), 400, 300, 0, null, null);*/
 
     d1 = new dancer(400, -400, 0, clk);
-    d1.seq.addseq(beat(0, 1, 4), [0, 0, 0], s1);
-    d1.seq.addseq(beat(1, 1, 4), [0, 0, 0], s1, true);
+    //d1.seq.addseq(beat(0, 1, 4), [0, 0, 0], s1);
+    //d1.seq.addseq(beat(1, 1, 4), [0, 0, 0], s1, true);
     //d1.seq.addpoint(beat(0, 1, 4), 0, 0, null, 0, 300);
     //d1.seq.addpoint(beat(1, 1, 4), 200, 300, null, null, null);
+    var wu = warmup();
+    d1.seq.addseq(beat(0, 1, 4), [0, 0, 0], wu);
 
-    clk.run(beat(0, 1, 4), beat(1, 1, 4), true);
+    clk.run(beat(0, 1, 4), beat(8, 1, 4), true);
 
 }
+
+function warmup()
+{
+    base = new sequence(); //2/4
+    base.addstep(beat(0, 1, 8), [0, 20, 0], 'r', 'dig'),
+    base.addstep(beat(0, 2, 8), [0, 10, 0], 'r', 'touch'),
+    base.addstep(beat(0, 3, 8), [0, 0, 0], 'r', 'ball'),
+    base.addstep(beat(0, 4, 8), [0, 0, 0], 'r', 'heel'),
+
+    move  = new sequence(); //1/4
+    move.addstep(beat(0, 1, 8), [0, 0, 0], 'l', 'ball'),
+    move.addstep(beat(0, 2, 8), [0, 0, 0], 'l', 'heel'),
+
+    static = new sequence(); //2
+    static.addseq(beat(0, 1, 4), [0, 0, 0], base, false);
+    static.addseq(beat(0, 3, 4), [0, 0, 0], base, true);
+    static.addseq(beat(1, 1, 4), [0, 0, 0], base, false);
+    static.addseq(beat(1, 3, 4), [0, 0, 0], base, true);
+
+    travel = new sequence(); //2
+    travel.addseq(beat(0, 1, 4), [0, 0, 0], base, false);
+    travel.addseq(beat(0, 3, 4), [0, 0, 0], move, false);
+    travel.addseq(beat(0, 4, 4), [0, 0, 0], base, false);
+    travel.addseq(beat(1, 2, 4), [0, 0, 0], move, false);
+    travel.addseq(beat(1, 3, 4), [0, 0, 0], base, false);
+    travel.addpoint(beat(0, 3, 4), 0, 0, 0, null, null);
+    travel.addpoint(beat(1, 3, 4), -100, 0, 0, null, null);
+
+    warmup = new sequence(); //8
+    warmup.addseq(beat(0, 1, 4), [0, 0, 0], static, false);
+    warmup.addseq(beat(2, 1, 4), [0, 0, 0], travel, false);
+    warmup.addseq(beat(4, 1, 4), [0, 0, 0], static, true);
+    warmup.addseq(beat(6, 1, 4), [0, 0, 0], travel, true);
+    return warmup;
+}
+    
 
 function loop()
 {
