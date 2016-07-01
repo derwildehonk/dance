@@ -16,8 +16,11 @@ FOOTPRINT_HEIGHT = 100;
 function footprint () {
     this.img = new Image();
     this.img.classList = "footprint hidden";
+    this.high = new Image();
+    this.high.classList = "highlight hidden";
     this.lastuse = 0;
     document.body.appendChild(this.img);
+    document.body.appendChild(this.high);
 }
 
 stepimgs = {}
@@ -33,13 +36,36 @@ stepimgs['touch'] = "img/shuf.png";
 stepimgs['fly'] = "img/fly.png";
 stepimgs['spank'] = "img/shuf.png";
 
+highimgs = {}
+highimgs['step']  = "img/stomp_s.png";
+highimgs['ball']  = "img/ball_h.png";
+highimgs['edge']  = "img/stomp_s.png"; 
+highimgs['heel']  = "img/heel_s.png"; 
+highimgs['shuf']  = "img/shuf_h.png"; 
+highimgs['tip']   = "img/stomp_s.png"; 
+highimgs['stomp'] = "img/stomp_s.png";
+highimgs['dig']   = "img/dig_h.png";
+highimgs['touch'] = "img/shuf_h.png";
+highimgs['fly']   = "img/stomp_s.png";
+highimgs['spank'] = "img/stomp_s.png";
+
 footprint.prototype.step = function(x, y, rot, type) {
-    this.img.classList.remove("hidden", "fading");
+    this.img.classList.remove("hidden", "fade");
     this.img.style.left = x - FOOTPRINT_WIDTH / 2;
     this.img.style.top = -y - FOOTPRINT_HEIGHT / 2;
     this.img.style.transform = "rotate(" + rot + "deg)";
-    //type
     this.img.src = stepimgs[type];
+    //
+    this.high.classList.remove("hidden", "highfade");
+    this.high.style.left = x - FOOTPRINT_WIDTH / 2;
+    this.high.style.top = -y - FOOTPRINT_HEIGHT / 2;
+    this.high.style.transform = "rotate(" + rot + "deg)";
+    this.high.src = highimgs[type];
+    setTimeout(highfade, 100, this.high);
+}
+
+function highfade(img){
+    img.classList.add("hidden", "highfade");
 }
 
 footprint.prototype.fade = function() {
@@ -274,18 +300,28 @@ sequence.prototype.getpos = function(now, mir){
     return pos;
 }
 
-sequence.prototype.getsteps = function(t1, t2, troot = 0, mirror = false){
+//TODO neither sequences nor steps are sorted
+sequence.prototype.getsteps = function(t1, t2, troot = 0, mirror = false, last = null){
+    if(last == null)
+        last = {l : null, r : null};
     var ret = new Array();
     for(var i = 0; i < this.steps.length; i++){
-        if(t1 <= this.steps[i].beat && t2 > this.steps[i].beat){
-            var o = {step : this.steps[i], beat : troot, mirror : mirror};  
-            ret.push(o);
+        var st = this.steps[i];
+        var isleft = st.foot == 'l';
+        var o = {step : st, beat : troot, mirror : mirror, last : isleft ? last.l : last.r};
+        if(st.pos != null){  
+            if(isleft)
+                last.l = o;
+            if(!isleft)
+                last.r = o;
         }
+        if(t1 <= st.beat && t2 > st.beat)
+            ret.push(o);
     }
     for(var i = 0; i < this.subs.length; i++){
         var off = this.subs[i].beat;
         var mir = this.subs[i].mirror ^ mirror;
-        var pts = this.subs[i].seq.getsteps(t1 - off, t2 - off, troot + off, mir);
+        var pts = this.subs[i].seq.getsteps(t1 - off, t2 - off, troot + off, mir, last);
         ret.push.apply(ret, pts); 
     }
     return ret;
@@ -311,14 +347,14 @@ dancer.prototype.clk_call = function (now, delta) {
     this.pointer.move(pos[0], pos[1], pos[2]);
     var pts = this.seq.getsteps(now - delta, now);
     for(var pt = 0; pt < pts.length; pt++)
-        this.dostep(pts[pt].step, pts[pt].beat, pts[pt].mirror);
+        this.dostep(pts[pt]);
     return null;
 }
 
-dancer.prototype.dostep = function(step, beat, mirror) {
+dancer.prototype.dostep = function(inst) {
     var ft, ftx, ftt;
-    ftt = step.foot;
-    if(mirror)
+    ftt = inst.step.foot;
+    if(inst.mirror)
         ftt = ftt == 'l' ? 'r' : 'l';
     if(ftt == 'l'){
         ft = this.left;
@@ -327,10 +363,24 @@ dancer.prototype.dostep = function(step, beat, mirror) {
         ft = this.right;
         ftx = DANCER_RIGTH_XOFF;
     }
-    var pos = addpt(this.pos, this.seq.getpos(beat + step.beat));
-    pos = addpt(pos, step.pos, mirror); //add step pos
+    var tme;
+    if(inst.step.pos == null && inst.last == null){
+        console.log("step positionless");
+        return;
+    }
+    if(inst.step.pos == null)
+        tme = inst.last.beat + inst.last.step.beat;
+    else
+        tme = inst.beat + inst.step.beat;
+    var pos = addpt(this.pos, this.seq.getpos(tme));
+    if(inst.step.pos == null)
+        pos = addpt(pos, inst.last.step.pos, inst.last.mirror); //add step pos    
+    else
+        pos = addpt(pos, inst.step.pos, inst.mirror); //add step pos
     pos = addpt(pos, [ftx, 0, 0]);
-    ft.step(pos[0], pos[1], pos[2], step.typ);
+    ft.step(pos[0], pos[1], pos[2], inst.step.typ);
+    if(inst.loaded != null)
+        console.log("step loaded: " + inst.step.typ + " " + inst.loaded.step.typ); 
 }
 
 /*dancer.prototype.getpos = function(now)
