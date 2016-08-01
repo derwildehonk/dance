@@ -1,6 +1,7 @@
 body {
     background-color: black;
     color: white;
+    font-family: 'sans';
 }
 
 *.footprint {
@@ -34,4 +35,15 @@ body {
     position: absolute;
     display: block;
     transform-origin: 50% 50%;
+ }
+
+ *.sidebar {
+     float: right;
+     width: 300px;
+     background: #333;
+     padding: 10px;
+ }
+
+ *.sidebar ul {
+     padding-left: 15px;
  }

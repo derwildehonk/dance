@@ -2,6 +2,7 @@
 <html>
     <head>
         <script type="text/javascript" src="dance.js"></script>
+        <script type="text/javascript" src="ui.js"></script>
         <script type="text/javascript">
 var d1;
 var x;
@@ -18,6 +19,9 @@ function init(){
     
     var wu = warmup();
     d1.seq.addseq(beat(0, 1, 4), [0, 0, 0], wu);
+
+    ui = new ui();
+    ui.dancer_sel(d1);
 
     clk.run(beat(0, 1, 4), beat(8, 1, 4), true);
 
@@ -89,5 +93,10 @@ function loader(data)
     <body onload="init();">
         now: <span id="now">N/A</span>
         <!--<input type="file" id="loader" name="loader"/>-->
+        <div class="sidebar">
+            <h2>sequences</h2>
+            <ul id="sequence">
+            </ul>
+        </div>
     </body>
 </html>
