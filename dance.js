@@ -374,7 +374,9 @@ function dancer(x, y, r, clk) {
     this.clk.register(this, null);
 }
 
-dancer.prototype.clk_call = function (now) {
+dancer.prototype.clk_call = function (now, delta) {
+    if(delta == null)
+        this.it = null;
     if(this.it == null)
         this.it = new sequence_iterator(this.seq);
     if(this.step == null){
@@ -429,7 +431,7 @@ clock.prototype.run = function(start, end, loop = false) {
     this.end = end;
     this.loop = loop;
     this.begin = new Date().getTime() - start * 1000 / this.speed;
-    this.lasttick = 0;
+    this.lasttick = null;
     this.sched_tout = setInterval(clock_call, self.tickdelta, this);
     for(i = 0; i < this.hands.length; i++)
         this.hands[i].clk_call(start);
@@ -445,14 +447,16 @@ clock.prototype.getnow = function() {
 function clock_call(clock) {
     var now = clock.getnow();
     document.getElementById("now").innerHTML = unbeat(now, 8);
+    var delta = clock.lasttick ? clock.lasttick - now : null;
     for(i = 0; i < clock.hands.length; i++)
-        hand = clock.hands[i].clk_call(now, this.lasttick - now);
+        hand = clock.hands[i].clk_call(now, delta);
+    clock.lasttick = now;
     if(now >= clock.end){
         if(clock.loop){
             clock.begin += (clock.end - clock.start) * 1000 / clock.speed;
-            clock.lasttick -= clock.end - clock.start;
+            clock.lasttick = null;
             console.log("clk wrap " + clock.begin);
-            //clock_call(clock);
+            clock_call(clock);
         }else{
             console.log("clk stop");
             clearTimeout(clock.sched_tout);
