@@ -13,7 +13,13 @@ function init(){
     clk = new clock();
     clk.speed = 16;
     
-    s1 = new sequence();
+    var paddle = new sequence();
+    paddle.addstep(beat(1, 1, 8), [0, 80, 0], 'r', 'heel', 'touch');
+    paddle.addstep(beat(1, 2, 8), [0, 40, 0], 'r', 'ball', 'touch');
+    paddle.addstep(beat(1, 3, 8), [0,  0, 0], 'r', 'ball', 'step');
+    paddle.addstep(beat(1, 4, 8), [0,  0, 0], 'r', 'heel', 'add');
+
+    /*s1 = new sequence();
     s1.addstep(beat(0,  1,  8), [ 0, 30,  0], 'r', 'shuf'),
     s1.addstep(beat(0,  2,  8), [ 0, 40,  0], 'r', 'ball'),
     s1.addstep(beat(0,  3,  8), [ 0, 20,  0], 'l', 'step'),
@@ -31,7 +37,7 @@ function init(){
     s2.addstep(beat(0, 5, 8), [0, 20, 0], 'l', 'dig'),
     s2.addstep(beat(0, 6, 8), [0, 10, 0], 'l', 'touch'),
     s2.addstep(beat(0, 7, 8), [0, 0,  0], 'l', 'ball'),
-    s2.addstep(beat(0, 8, 8), [0, 0,  0], 'l', 'heel')
+    s2.addstep(beat(0, 8, 8), [0, 0,  0], 'l', 'heel')*/
 
     /*s2.curve.addpoint(beat(0, 1, 8), 0, 0, null, null, null);
     s2.curve.addpoint(beat(0, 8, 8), 0, 0, null, null, null);
@@ -74,12 +80,12 @@ function init(){
     s4.curve.addpoint(beat(1, 4, 4), 400, 300, 0, null, null);*/
 
     d1 = new dancer(400, -400, 0, clk);
-    d1.seq.addseq(beat(0, 1, 4), [0, 0, 0], s1);
-    d1.seq.addseq(beat(1, 1, 4), [0, 0, 0], s1, true);
+    d1.seq.addseq(beat(1, 1, 4), [0, 0, 0], paddle);
+    d1.seq.addseq(beat(1, 3, 4), [0, 0, 0], paddle, true);
     //d1.seq.addpoint(beat(0, 1, 4), 0, 0, null, 0, 300);
     //d1.seq.addpoint(beat(1, 1, 4), 200, 300, null, null, null);
 
-    clk.run(beat(0, 1, 4), beat(1, 1, 4), true);
+    clk.run(beat(1, 1, 4), beat(2, 1, 4), true);
 
 }
 

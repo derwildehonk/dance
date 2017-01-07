@@ -21,28 +21,19 @@ function footprint () {
 }
 
 footimgs = {}
-footimgs['step'] = "img/step.png";
+footimgs['full'] = "img/full.png";
 footimgs['ball'] = "img/ball.png";
-footimgs['edge'] = "img/edge.png"; 
-footimgs['heel'] = "img/step.png"; 
-footimgs['shuf'] = "img/shuf.png"; 
-footimgs['tip'] = "img/tip.png"; 
-footimgs['stomp'] = "img/stomp.png";
-footimgs['dig'] = "img/edge.png";
-footimgs['touch'] = "img/shuf.png"; 
+footimgs['heel'] = "img/heel.png";
 
 footprint.prototype.step = function(x, y, rot, type) {
+    //appear
     this.img.classList.remove("hidden", "fading");
     this.img.style.left = x - FOOTPRINT_WIDTH / 2;
     this.img.style.top = -y - FOOTPRINT_HEIGHT / 2;
     this.img.style.transform = "rotate(" + rot + "deg)";
-    //type
     this.img.src = footimgs[type];
-}
-
-footprint.prototype.fade = function() {
-    this.img.classList.add("hidden", "fading");
-    this.lastuse = new Date().getTime();
+    //disappear
+    setTimeout(footprint_disappear, 100, this);
 }
 
 footprint.prototype.isavail = function() {
@@ -51,6 +42,11 @@ footprint.prototype.isavail = function() {
         return false;
     else
         return true;
+}
+
+function footprint_disappear(footprint) {
+    footprint.img.classList.add("hidden", "fading");
+    footprint.lastuse = new Date().getTime();
 }
 
 //////////////////////////////////
@@ -93,7 +89,6 @@ pointer.prototype.move = function(x, y, rot) {
 
 function foot() {
     this.prints = [];
-    this.last = null;
     this.shadow = shadow();
 }
 
@@ -102,8 +97,6 @@ foot.prototype.move = function(x, y, rot) {
 }
 
 foot.prototype.step = function(x, y, rot, typ) {
-    if(this.last != null)
-        this.last.fade();
     //find a free print
     var choose = null;
     for(var i = 0; i < this.prints.length; i++){
@@ -117,7 +110,6 @@ foot.prototype.step = function(x, y, rot, typ) {
         this.prints.push(choose);
     }
     choose.step(x, y, rot, typ);
-    this.last = choose;
 }
 
 // helper
@@ -379,14 +371,19 @@ dancer.prototype.clk_call = function (now, delta) {
         this.it = null;
     if(this.it == null)
         this.it = new sequence_iterator(this.seq);
-    if(this.step == null){
-        this.step = this.it.next();
-        if(this.step == null)
-            this.it = null;
-    }
-    if(this.step != null && this.step.step.beat + this.step.toff < now){
-        this.dostep();
-        this.step = null;
+    while(true){
+        if(this.step == null){
+            this.step = this.it.next();
+            /*if(this.step == null){
+                this.it = null;
+                return;
+            }*/
+        }
+        if(this.step && this.step.step.beat + this.step.toff < now){
+            this.dostep();
+            this.step = null;
+        }else
+            return;
     }
 }
 
@@ -404,6 +401,7 @@ dancer.prototype.dostep = function() {
     }
     var pos = addpt(this.step.step.pos, this.step.poff);
     pos = addpt(pos, [ftx, 0, 0]);
+    pos = addpt(pos, this.pos);
     ft.step(pos[0], pos[1], pos[2], this.step.step.typ);
 }
 
@@ -471,14 +469,16 @@ function clock_call(clock) {
 function beat(full, count, parts, count1 = null, parts1 = null) {
     if(parts > 128 || parts > 128)
         throw "time precision is only 128 parts";
-    var ret = full * 128 + (count - 1) * (128 / parts);
+    if(full < 1 || count < 1)
+        throw "beat counting starts with 1 (no computer science here)";
+    var ret = (full - 1) * 128 + (count - 1) * (128 / parts);
     if(count1 != null)
         ret += (count1 - 1) * (128 / parts1);
     return ret;
 }
 
 function unbeat(beat, parts) {
-    var full = 0, count = 0;
+    var full = 1, count;
     while(beat > 128){
         beat -= 128;
         full += 1;
