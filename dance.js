@@ -89,7 +89,7 @@ pointer.prototype.move = function(x, y, rot) {
 
 function foot() {
     this.prints = [];
-    this.shadow = shadow();
+    this.shadow = new shadow();
 }
 
 foot.prototype.move = function(x, y, rot) {
@@ -403,6 +403,7 @@ dancer.prototype.dostep = function() {
     pos = addpt(pos, [ftx, 0, 0]);
     pos = addpt(pos, this.pos);
     ft.step(pos[0], pos[1], pos[2], this.step.step.typ);
+    ft.move(pos[0], pos[1], pos[2])
 }
 
 //////////////////////////////////
