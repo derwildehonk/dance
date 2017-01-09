@@ -90,13 +90,14 @@ pointer.prototype.move = function(x, y, rot) {
 function foot() {
     this.prints = [];
     this.shadow = new shadow();
+    this.weigth = "full";
 }
 
 foot.prototype.move = function(x, y, rot) {
     this.shadow.move(x, y, rot)
 }
 
-foot.prototype.step = function(x, y, rot, typ) {
+foot.prototype.step = function(x, y, rot, typ, weight) {
     //find a free print
     var choose = null;
     for(var i = 0; i < this.prints.length; i++){
@@ -110,6 +111,8 @@ foot.prototype.step = function(x, y, rot, typ) {
         this.prints.push(choose);
     }
     choose.step(x, y, rot, typ);
+    //weight
+    
 }
 
 // helper
@@ -402,8 +405,8 @@ dancer.prototype.dostep = function() {
     var pos = addpt(this.step.step.pos, this.step.poff);
     pos = addpt(pos, [ftx, 0, 0]);
     pos = addpt(pos, this.pos);
-    ft.step(pos[0], pos[1], pos[2], this.step.step.typ);
-    ft.move(pos[0], pos[1], pos[2])
+    ft.step(pos[0], pos[1], pos[2], this.step.step.typ, this.step.step.weight);
+    ft.move(pos[0], pos[1], pos[2]);
 }
 
 //////////////////////////////////
